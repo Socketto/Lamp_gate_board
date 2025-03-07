@@ -1,0 +1,43 @@
+name: Build Arduino Sketch for ESP8266
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Arduino CLI
+        run: |
+          wget -qO- https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_64bit.tar.gz | tar xz
+          sudo mv arduino-cli /usr/local/bin/
+          arduino-cli version  # Verifica se Arduino CLI è installato correttamente
+
+      - name: Install ESP8266 Core & Libraries
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls http://arduino.esp8266.com/stable/package_esp8266com_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp8266:esp8266
+          arduino-cli lib install "WiFiManager"  # Libreria per gestione WiFi ESP8266
+          arduino-cli lib install "PubSubClient"  # MQTT
+
+      - name: Compile Sketch
+        run: |
+          mkdir -p build
+          arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 arduino/Gate/Gate.ino --export-binaries --output-dir build
+          ls -R
+          
+      - name: Archive build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: build/*.bin
+          if-no-files-found: error # 'warn' o 'ignore' sono anche disponibili, default `warn`
